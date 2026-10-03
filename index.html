@@ -810,109 +810,88 @@ setCloudStatus(
    ========================================================= */
 
 async function cloudPull(){
+  if(!sb){
+    setCloudStatus('Supabase haijaunganishwa.');
+    return;
+  }
+  const {data:ud,error:ue}=await sb.auth.getUser();
+  if(ue||!ud?.user){
+    setCloudStatus('Login haijathibitishwa. Ingia kwa akaunti ileile kwenye simu zote.');
+    return;
+  }
 
-if(!sb)return;
+  const uid=ud.user.id;
+  cloudBusy=true;
+  try{
+    // Soma kwanza wageni waliopo cloud.
+    const {data:rows,error}=await sb
+      .from('wedding_guests')
+      .select('guest_id,payload')
+      .eq('owner_id',uid);
+    if(error)throw error;
 
-let {data:ud,error:ue}=await sb.auth.getUser();
+    const cloudGuests=(rows||[])
+      .map(r=>r.payload)
+      .filter(g=>g && g.id)
+      .map(g=>({...g,id:String(g.id).trim()}));
+    const cloudIds=new Set(cloudGuests.map(g=>g.id.toUpperCase()));
 
-if(ue||!ud.user){
+    // Hifadhi wageni wa simu hii ambao hawapo cloud bado.
+    // Hii huzuia data ya simu A kupotea ikiwa cloud ilikuwa na rekodi nyingine.
+    const localGuests=(Array.isArray(guests)?guests:[])
+      .filter(g=>g && g.id)
+      .map(g=>({...g,id:String(g.id).trim()}));
+    const missingLocal=localGuests.filter(g=>!cloudIds.has(g.id.toUpperCase()));
 
-setCloudStatus(
-'Login haijathibitishwa.'
-);
+    if(missingLocal.length){
+      const uploadRows=missingLocal.map(g=>({
+        owner_id:uid,
+        guest_id:g.id,
+        payload:g
+      }));
+      const {error:upErr}=await sb
+        .from('wedding_guests')
+        .upsert(uploadRows,{onConflict:'owner_id,guest_id'});
+      if(upErr)throw upErr;
+    }
 
-return;
+    // Pakua tena orodha ya mwisho kutoka cloud baada ya kupakia wageni wapya.
+    const {data:finalRows,error:finalErr}=await sb
+      .from('wedding_guests')
+      .select('guest_id,payload')
+      .eq('owner_id',uid);
+    if(finalErr)throw finalErr;
+    guests=(finalRows||[])
+      .map(r=>r.payload)
+      .filter(g=>g && g.id)
+      .map(g=>({...g,id:String(g.id).trim()}));
+    localStorage.setItem(GK,JSON.stringify(guests));
 
+    const {data:sr,error:se}=await sb
+      .from('wedding_settings')
+      .select('settings')
+      .eq('owner_id',uid)
+      .maybeSingle();
+    if(se)throw se;
+    if(sr?.settings){
+      s=sr.settings;
+      localStorage.setItem(SK,JSON.stringify(s));
+    }else{
+      const {error:settingsErr}=await sb
+        .from('wedding_settings')
+        .upsert({owner_id:uid,settings:s});
+      if(settingsErr)throw settingsErr;
+    }
+
+    loadSettings();
+    refresh();
+    setCloudStatus('Imeunganishwa kama '+ud.user.email+'. Wageni '+guests.length+' wamesawazishwa kwenye Cloud DB.');
+  }catch(e){
+    setCloudStatus('Hitilafu ya sync: '+(e?.message||String(e))+' — angalia SQL/RLS na ruhusa za Supabase.');
+  }finally{
+    cloudBusy=false;
+  }
 }
-
-let uid=ud.user.id;
-
-cloudBusy=true;
-
-try{
-
-let {
-data:rows,
-error
-}=await sb
-.from('wedding_guests')
-.select('guest_id,payload')
-.eq('owner_id',uid);
-
-if(error)throw error;
-
-if(rows?.length){
-
-guests=rows.map(r=>r.payload);
-
-localStorage.setItem(
-GK,
-JSON.stringify(guests)
-);
-
-}else if(guests.length){
-
-await cloudSaveGuests(true);
-
-}
-
-
-let {
-data:sr,
-error:se
-}=await sb
-.from('wedding_settings')
-.select('settings')
-.eq('owner_id',uid)
-.maybeSingle();
-
-if(se)throw se;
-
-if(sr?.settings){
-
-s=sr.settings;
-
-localStorage.setItem(
-SK,
-JSON.stringify(s)
-);
-
-}else{
-
-await sb
-.from('wedding_settings')
-.upsert({
-owner_id:uid,
-settings:s
-});
-
-}
-
-loadSettings();
-refresh();
-
-setCloudStatus(
-'Imeunganishwa kama '+ud.user.email+
-'. Wageni '+guests.length+
-' wamesawazishwa kwenye cloud.'
-);
-
-}catch(e){
-
-setCloudStatus(
-'Hitilafu ya sync: '+
-e.message+
-' — hakikisha SQL/RLS setup imefanyika.'
-);
-
-}finally{
-
-cloudBusy=false;
-
-}
-
-}
-
 
 /* =========================================================
    CLOUD SAVE
@@ -2206,90 +2185,85 @@ try{
 }
 }
 
-function extractInvitationId(raw){
-  const value=String(raw??'').trim();
-  if(!value)return '';
-  // QR inaweza kuwa na ID moja kwa moja, URL, au JSON.
-  try{
-    const obj=JSON.parse(value);
-    if(obj && typeof obj==='object'){
-      const found=obj.invitationId||obj.invitation_id||obj.guestId||obj.guest_id||obj.id||obj.code;
-      if(found)return String(found).trim();
-    }
-  }catch(e){}
-  try{
-    const u=new URL(value);
-    const found=u.searchParams.get('invitationId')||u.searchParams.get('invitation_id')||u.searchParams.get('guestId')||u.searchParams.get('guest_id')||u.searchParams.get('id')||u.searchParams.get('code');
-    if(found)return found.trim();
-  }catch(e){}
-  const match=value.match(/WED-[A-Z0-9-]+/i);
-  return match?match[0].toUpperCase():value;
+function process(id){
+
+id=String(id).trim();
+
+let g=
+guests.find(
+x=>x.id===id
+);
+
+if(!g){
+
+document.getElementById(
+'scanResult'
+).innerHTML=
+`
+<div class="result invalid">
+
+<h3>❌ INVALID INVITATION</h3>
+
+<p>
+ID haipo kwenye mfumo.
+</p>
+
+</div>
+`;
+
+return;
+
 }
 
-async function findGuestInCloud(id){
-  if(!sb)return null;
-  try{
-    const {data:authData,error:authError}=await sb.auth.getUser();
-    if(authError||!authData?.user)return null;
-    const {data:rows,error}=await sb
-      .from('wedding_guests')
-      .select('guest_id,payload')
-      .eq('owner_id',authData.user.id);
-    if(error)throw error;
-    if(Array.isArray(rows)){
-      const cloudGuests=rows.map(r=>r.payload).filter(Boolean).map(g=>({...g,id:String(g.id||'').trim()}));
-      // Cloud ndiyo chanzo cha orodha ya pamoja kwa simu za wahudumu.
-      guests=cloudGuests;
-      localStorage.setItem(GK,JSON.stringify(guests));
-      refresh();
-      setCloudStatus('Cloud imeunganishwa. Wageni '+guests.length+' wamepakuliwa kwa ajili ya check-in.');
-      return guests.find(g=>String(g.id||'').trim().toUpperCase()===id.toUpperCase())||null;
-    }
-  }catch(e){
-    setCloudStatus('Imeshindikana kupakua wageni kutoka Cloud: '+(e.message||String(e)));
-  }
-  return null;
+if(g.checked){
+
+document.getElementById(
+'scanResult'
+).innerHTML=
+`
+<div class="result invalid">
+
+<h3>⚠️ ALREADY CHECKED IN</h3>
+
+<b>${esc(g.name)}</b>
+
+<br>
+Guests: ${g.count}
+
+<br>
+${new Date(g.checkedAt).toLocaleString()}
+
+</div>
+`;
+
+return;
+
 }
 
-async function process(rawId){
-  const id=extractInvitationId(rawId);
-  let g=guests.find(x=>String(x.id||'').trim().toUpperCase()===id.toUpperCase());
+document.getElementById(
+'scanResult'
+).innerHTML=
+`
+<div class="result valid">
 
-  // Kama orodha ya simu hii haina mgeni, tafuta tena kwenye Supabase.
-  if(!g){
-    const result=document.getElementById('scanResult');
-    if(result)result.innerHTML='<div class="result">Inatafuta Invitation ID kwenye Cloud DB…</div>';
-    g=await findGuestInCloud(id);
-  }
+<h3>✅ VALID INVITATION</h3>
 
-  if(!g){
-    const result=document.getElementById('scanResult');
-    const help=document.getElementById('cameraHelp');
-    let signedIn=false;
-    try{const {data}=sb?await sb.auth.getUser():{data:null};signedIn=!!data?.user;}catch(e){}
-    if(result)result.innerHTML=`
-      <div class="result invalid">
-        <h3>❌ INVITATION ID HAIPATIKANI</h3>
-        <p>ID iliyosomwa: <b>${esc(id||'(hakuna ID)')}</b></p>
-        <p>${signedIn?'ID hii haipo kwenye orodha ya Cloud DB ya akaunti hii. Hakikisha umetumia akaunti ileile iliyosajili wageni.':'Simu hii haijaingia kwenye Cloud DB. Fungua Database ya Mtandaoni, ingia kwa akaunti ileile iliyotumika kusajili wageni, kisha bonyeza Login & Sync.'}</p>
-      </div>`;
-    if(help)help.textContent='Baada ya Login & Sync kufanikiwa, jaribu kuscan tena.';
-    liveScanLocked=false;
-    return;
-  }
+<b>${esc(g.name)}</b>
 
-  if(g.checked){
-    document.getElementById('scanResult').innerHTML=`
-      <div class="result invalid"><h3>⚠️ ALREADY CHECKED IN</h3>
-      <b>${esc(g.name)}</b><br>Guests: ${esc(g.count)}<br>
-      ${g.checkedAt?new Date(g.checkedAt).toLocaleString():''}</div>`;
-    return;
-  }
+<br>
+Guests allowed: ${g.count}
 
-  document.getElementById('scanResult').innerHTML=`
-    <div class="result valid"><h3>✅ VALID INVITATION</h3>
-    <b>${esc(g.name)}</b><br>Guests allowed: ${esc(g.count)}<br><br>
-    <button class="primary" onclick="checkin('${esc(g.id)}')">CONFIRM / CHECK IN</button></div>`;
+<br><br>
+
+<button
+class="primary"
+onclick="checkin('${g.id}')">
+CONFIRM / CHECK IN
+</button>
+
+</div>
+`;
+
 }
 
 
@@ -2964,17 +2938,6 @@ loadSettings();
 initCloud();
 
 refresh();
-
-// Kama mhudumu tayari aliingia kwenye Supabase kwenye simu hii,
-// pakua orodha ya pamoja bila kuhitaji login kila mara.
-setTimeout(async()=>{
-  try{
-    if(sb){
-      const {data}=await sb.auth.getUser();
-      if(data?.user)await cloudPull();
-    }
-  }catch(e){console.warn('Auto cloud sync:',e);}
-},700);
 
 </script>
 
