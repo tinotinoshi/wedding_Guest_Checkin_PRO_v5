@@ -540,6 +540,8 @@ let guests=JSON.parse(localStorage.getItem(GK)||'[]');
 
 let sb=null;
 let cloudBusy=false;
+let cloudAutoTimer=null;
+let cloudAuthBound=false;
 
 let s=JSON.parse(localStorage.getItem(SK)||'null')||{
 bride:'Maria',
@@ -661,6 +663,9 @@ console.error('Supabase init error:',e);
 
 }
 
+
+if(sb)startAutoCloudSync();
+
 }
 
 
@@ -702,8 +707,41 @@ detectSessionInUrl:true
 }
 );
 
+cloudAuthBound=false;
+startAutoCloudSync();
+
 return sb;
 
+}
+
+
+/* =========================================================
+   AUTOMATIC CLOUD SYNC
+   ========================================================= */
+
+function startAutoCloudSync(){
+  if(!sb)return;
+
+  if(!cloudAuthBound && sb.auth?.onAuthStateChange){
+    cloudAuthBound=true;
+    sb.auth.onAuthStateChange((event,session)=>{
+      if(session)setTimeout(()=>cloudPull(),0);
+    });
+  }
+
+  sb.auth.getSession().then(({data})=>{
+    if(data?.session)cloudPull();
+  }).catch(()=>{});
+
+  if(!cloudAutoTimer){
+    cloudAutoTimer=setInterval(async()=>{
+      if(!sb || cloudBusy)return;
+      try{
+        const {data}=await sb.auth.getSession();
+        if(data?.session)await cloudPull();
+      }catch(e){}
+    },8000);
+  }
 }
 
 
@@ -2928,5 +2966,8 @@ refresh();
 
 </script>
 
+<script>
+setTimeout(()=>{try{initCloud();}catch(e){console.error(e);}},150);
+</script>
 </body>
 </html>
