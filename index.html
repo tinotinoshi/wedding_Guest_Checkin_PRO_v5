@@ -121,6 +121,62 @@ header,nav,main>section:not(#preview){display:none!important}
 #preview{display:block!important}
 .invite{box-shadow:none}
 }
+
+/* ===== FLORAL LUXURY CARD DESIGN UPGRADE ===== */
+.guest-card{
+  width:min(100%,560px)!important;
+  padding:42px 32px 34px!important;
+  border-radius:18px!important;
+  background:
+    radial-gradient(circle at 7% 9%,rgba(185,167,217,.24),transparent 20%),
+    radial-gradient(circle at 93% 10%,rgba(169,214,216,.24),transparent 21%),
+    radial-gradient(circle at 8% 92%,rgba(175,198,178,.26),transparent 22%),
+    radial-gradient(circle at 94% 91%,rgba(201,162,39,.12),transparent 20%),
+    linear-gradient(145deg,#fffefa 0%,#fbf6ec 52%,#f8f0df 100%)!important;
+  box-shadow:0 22px 55px rgba(75,48,40,.22),0 2px 0 rgba(201,162,39,.18) inset!important;
+}
+.guest-card:before{inset:9px!important;border:1px solid rgba(201,162,39,.78)!important;border-radius:12px!important}
+.guest-card:after{inset:15px!important;border:1px solid rgba(75,48,40,.16)!important;border-radius:9px!important}
+.guest-card .floral{
+  z-index:0!important;opacity:1!important;filter:none!important;
+  font-family:Georgia,'Times New Roman',serif!important;
+  font-size:0!important;width:92px;height:92px;
+  pointer-events:none!important;
+}
+.guest-card .floral:before{
+  position:absolute;content:'❁';font-size:58px;line-height:1;
+  color:var(--lavender);opacity:.72;
+  text-shadow:18px 15px 0 rgba(175,198,178,.72),-9px 27px 0 rgba(169,214,216,.58);
+}
+.guest-card .floral:after{
+  position:absolute;content:'❋';font-size:25px;line-height:1;color:var(--gold);opacity:.78;
+}
+.guest-card .floral.tl{left:8px!important;top:8px!important;transform:rotate(-18deg)!important}
+.guest-card .floral.tr{right:8px!important;top:8px!important;transform:scaleX(-1) rotate(-18deg)!important}
+.guest-card .floral.bl{left:8px!important;bottom:8px!important;transform:scaleY(-1) rotate(-18deg)!important}
+.guest-card .floral.br{right:8px!important;bottom:8px!important;transform:scale(-1,-1) rotate(-18deg)!important}
+.guest-card .floral.tl:after{left:50px;top:8px}.guest-card .floral.tr:after{right:50px;top:8px}.guest-card .floral.bl:after{left:50px;bottom:8px}.guest-card .floral.br:after{right:50px;bottom:8px}
+.guest-card .brand{font-size:12px!important;letter-spacing:5px!important;color:var(--chocolate)!important;margin-top:2px!important}
+.guest-card .couple-photo{width:min(100%,400px)!important;height:235px!important;border:3px solid var(--gold)!important;outline:1px solid rgba(75,48,40,.24)!important;outline-offset:5px!important;border-radius:14px!important;margin:20px auto 18px!important;box-shadow:0 12px 28px rgba(75,48,40,.16)!important}
+.guest-card .names{font-size:41px!important;line-height:.98!important;margin:15px 0 10px!important;letter-spacing:.2px!important}
+.guest-card .names span{display:inline-block!important;font-size:23px!important;margin:4px 0!important}
+.guest-card .message{font-size:18px!important;line-height:1.5!important;max-width:430px!important}
+.guest-card .guestname{font-size:15px!important;letter-spacing:1.7px!important;padding:10px 22px!important;border-top:1px solid rgba(201,162,39,.65)!important;border-bottom:1px solid rgba(201,162,39,.65)!important;background:rgba(255,255,255,.38)!important;border-radius:20px!important}
+.guest-card .info{gap:10px!important;margin:19px 4px!important}
+.guest-card .info div{background:rgba(255,255,255,.78)!important;border:1px solid rgba(201,162,39,.25)!important;border-radius:12px!important;padding:11px!important;box-shadow:0 3px 10px rgba(75,48,40,.045)!important}
+.guest-card .qrbox{width:238px!important;padding:11px!important;border:2px solid var(--gold)!important;border-radius:14px!important;box-shadow:0 8px 22px rgba(75,48,40,.14)!important}
+.guest-card .rsvp-buttons{gap:10px!important;margin:12px 0 5px!important}
+.guest-card .rsvp-btn{border-radius:22px!important;padding:12px 18px!important;transition:transform .15s ease,box-shadow .15s ease!important}
+.guest-card .rsvp-btn:hover{transform:translateY(-1px);box-shadow:0 6px 15px rgba(75,48,40,.16)!important}
+.guest-card .confirm{border-radius:22px!important;padding:11px 17px!important;display:inline-block!important}
+@media(max-width:560px){
+ .guest-card{padding:36px 20px 28px!important}
+ .guest-card .couple-photo{height:205px!important}
+ .guest-card .names{font-size:34px!important}
+ .guest-card .message{font-size:16px!important}
+ .guest-card .info{grid-template-columns:1fr!important;margin-left:0!important;margin-right:0!important}
+}
+
 </style>
 </head>
 
@@ -1347,7 +1403,7 @@ ${photo?`<img class="couple-photo" src="${esc(photo)}" alt="Picha ya maharusi" c
 <div class="names">${esc(s.groom)}<br><span style="font-size:20px;color:#D4AF37">&amp;</span><br>${esc(s.bride)}</div>
 <div class="eventline"></div>
 <div class="message">${esc(s.message||'Kwa furaha na upendo, tunakualika kushiriki nasi katika siku yetu ya ndoa. Uwepo wako ni sehemu muhimu ya furaha yetu.')}</div>
-<div class="guestname">MWALIKWA: ${esc(g.name)}</div>
+<div class="guestname">${esc(g.name)}</div>
 <div class="info">
 <div><span class="label">📅 TAREHE</span><span class="value">${esc(formatDate(s.date))}</span></div>
 <div><span class="label">🕐 MUDA</span><span class="value">${esc(s.time||'12:30')} JIONI</span></div>
