@@ -2135,79 +2135,69 @@ document
 }
 
 
-function startScanner(){
+async function startScanner(){
 
 if(scanner)return;
 
-if(!document.getElementById('reader'))return;
+const reader=document.getElementById('reader');
+if(!reader)return;
 
-if(
-location.protocol==='file:'||
-location.protocol==='content:'
-){
+const help=document.getElementById('cameraHelp');
+const result=document.getElementById('scanResult');
 
-document.getElementById(
-'cameraHelp'
-).textContent=
-'Live camera haiwezi kufunguka kwenye file mode. Tumia OPEN PHONE CAMERA, Gallery QR au Invitation ID.';
-
-return;
-
+if(location.protocol==='file:'||location.protocol==='content:'){
+  if(help)help.textContent='Live Camera inahitaji tovuti ya HTTPS. Fungua Wedding Invitation PRO kupitia GitHub Pages, si faili la ndani.';
+  return;
 }
 
 if(!window.Html5Qrcode){
-
-document.getElementById(
-'scanResult'
-).innerHTML=
-`
-<div class="result invalid">
-QR scanner haijapakiwa.
-Washa internet kisha jaribu tena.
-</div>
-`;
-
-return;
-
+  if(result)result.innerHTML='<div class="result invalid">QR scanner haijapakiwa. Hakikisha internet ipo, kisha refresh ukurasa.</div>';
+  return;
 }
 
-scanner=
-new Html5Qrcode('reader');
+if(help)help.textContent='Inaunganisha kamera ya nyuma… Shikilia QR ndani ya fremu na rekebisha umbali ili iwe wazi.';
 
-scanner
-.start(
-{facingMode:'environment'},
-{
-fps:10,
-qrbox:{
-width:250,
-height:250
+try{
+  scanner=new Html5Qrcode('reader');
+  let cameraConfig={facingMode:'environment'};
+  try{
+    const cameras=await Html5Qrcode.getCameras();
+    if(cameras && cameras.length){
+      const rear=cameras.find(c=>/back|rear|environment|main/i.test(c.label||''));
+      cameraConfig={deviceId:{exact:(rear||cameras[cameras.length-1]).id}};
+    }
+  }catch(cameraListError){
+    // Baadhi ya simu hazitoi orodha ya kamera; jaribu facingMode badala yake.
+  }
+
+  await scanner.start(
+    cameraConfig,
+    {
+      fps:15,
+      qrbox:(viewfinderWidth,viewfinderHeight)=>{
+        const size=Math.floor(Math.min(viewfinderWidth,viewfinderHeight)*0.72);
+        return {width:Math.max(180,Math.min(size,300)),height:Math.max(180,Math.min(size,300))};
+      },
+      aspectRatio:1.0,
+      disableFlip:false,
+      videoConstraints:{ facingMode:'environment' }
+    },
+    decodedText=>{
+      if(help)help.textContent='QR imesomwa. Kagua taarifa za mwalikwa hapa chini.';
+      process(decodedText);
+    },
+    scanError=>{
+      // Hii hutokea wakati QR bado haijapatikana; si hitilafu ya kuonyesha kila fremu.
+    }
+  );
+  if(help)help.textContent='Kamera iko tayari. Weka QR nzima ndani ya fremu, hakikisha mwanga upo na subiri sekunde chache.';
+}catch(e){
+  try{if(scanner){await scanner.stop().catch(()=>{});await scanner.clear().catch(()=>{});}}catch(cleanupError){}
+  scanner=null;
+  if(help)help.textContent='Kamera imefunguka lakini scanner imeshindwa kuanza. Hakikisha ruhusa ya kamera ipo, funga programu nyingine inayotumia kamera, kisha bonyeza Live Camera tena.';
+  if(result)result.innerHTML='<div class="result invalid">Live Camera haikuweza kuanza: '+esc(e?.message||String(e))+'</div>';
 }
-},
-x=>process(x),
-()=>{}
-)
-.catch(
-()=>{
-
-try{if(scanner)scanner.clear();}catch(e){}
-scanner=null;
-
-document.getElementById(
-'scanResult'
-).innerHTML=
-`
-<div class="result invalid">
-Ruhusu camera kwenye browser au tumia
-OPEN PHONE CAMERA / ID.
-</div>
-`;
-
 }
-);
-
-}
-
 
 function process(id){
 
