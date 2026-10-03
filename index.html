@@ -40,12 +40,6 @@ th{background:#4A403A;color:white}
 .result{padding:16px;border-radius:13px;background:white;margin-top:12px;border:2px solid #ddd}
 .valid{border-color:#7B9A6D}
 .invalid{border-color:#b42318}
-#scanResult{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,430px);z-index:99999;margin:0;pointer-events:none}
-#scanResult:empty{display:none}
-#scanResult .result{margin:0;box-shadow:0 18px 55px rgba(0,0,0,.28);text-align:center;pointer-events:auto;animation:verifyPop .22s ease-out}
-#scanResult .result h3{margin:0 0 10px;font-size:22px}
-#scanResult .result p{margin:8px 0}
-@keyframes verifyPop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
 #reader{max-width:520px;margin:auto;background:white;border-radius:12px;overflow:hidden}
 .invite{max-width:430px;margin:15px auto;background:linear-gradient(160deg,#FFF9F0,#F6B7A8);color:white;border-radius:18px;padding:25px;text-align:center}
 .invite .names{font-family:Georgia,serif;font-size:34px;color:#D4AF37;margin:15px 0}
@@ -141,6 +135,16 @@ header,nav,main>section:not(#preview){display:none!important}
 #preview{display:block!important}
 .invite{box-shadow:none}
 }
+
+/* =========================================================
+   SCAN VERIFICATION POPUP - TOP
+   ========================================================= */
+#scanResult{position:fixed!important;left:50%!important;top:18px!important;bottom:auto!important;transform:translateX(-50%)!important;width:min(94vw,460px)!important;z-index:2147483647!important;margin:0!important;padding:0!important;background:transparent!important;border:0!important;pointer-events:none!important}
+#scanResult:empty{display:none!important}
+#scanResult.scanPopupVisible{display:block!important}
+#scanResult .result{position:relative!important;margin:0!important;width:100%!important;box-shadow:0 14px 45px rgba(0,0,0,.30)!important;text-align:center!important;pointer-events:auto!important;animation:scanPopupDrop .22s ease-out!important}
+#scanResult .popupClose{position:absolute;right:10px;top:8px;width:32px;height:32px;border:0;border-radius:50%;font-size:25px;line-height:30px;background:rgba(0,0,0,.08);cursor:pointer}
+@keyframes scanPopupDrop{from{opacity:0;transform:translateY(-18px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 </style>
 </head>
 
@@ -2075,6 +2079,15 @@ Delete
 
 
 /* =========================================================
+   MULTI-ENTRY CHECK-IN HELPER
+   ========================================================= */
+function checkedPeople(g){
+  const max=Math.max(1,Number(g.count)||1);
+  if(Number.isFinite(Number(g.checkedCount))) return Math.max(0,Math.min(max,Number(g.checkedCount)));
+  return g.checked ? max : 0;
+}
+
+/* =========================================================
    DASHBOARD
    ========================================================= */
 
@@ -2213,101 +2226,51 @@ function process(id){
 
 id=String(id).trim();
 
-let g=
-guests.find(
-x=>x.id===id
-);
+let g=guests.find(x=>x.id===id);
 
 if(!g){
-
-document.getElementById(
-'scanResult'
-).innerHTML=
-`
-<div class="result invalid">
-
-<h3>❌ INVALID INVITATION</h3>
-
-<p>
-ID haipo kwenye mfumo.
-</p>
-
-</div>
-`;
-
+showScanPopup(`<div class="result invalid"><button class="popupClose" onclick="closeScanPopup()">×</button><h3>❌ INVALID INVITATION</h3><p>ID haipo kwenye mfumo.</p></div>`);
 return;
-
 }
 
-if(g.checked){
+const max=Math.max(1,Number(g.count)||1);
+const used=checkedPeople(g);
 
-document.getElementById(
-'scanResult'
-).innerHTML=
-`
-<div class="result invalid">
-
-<h3>⚠️ ALREADY CHECKED IN</h3>
-
-<b>${esc(g.name)}</b>
-
-<br>
-Guests: ${g.count}
-
-<br>
-${new Date(g.checkedAt).toLocaleString()}
-
-</div>
-`;
-
+if(used>=max){
+showScanPopup(`<div class="result invalid"><button class="popupClose" onclick="closeScanPopup()">×</button><h3>⚠️ INVITATION USED</h3><b>${esc(g.name)}</b><br>Wageni: ${used}/${max}<br><small>Kadi hii imetumika kikamilifu.</small></div>`);
 return;
-
 }
 
-document.getElementById(
-'scanResult'
-).innerHTML=
-`
-<div class="result valid">
-
-<h3>✅ VALID INVITATION</h3>
-
-<b>${esc(g.name)}</b>
-
-<br>
-Guests allowed: ${g.count}
-
-<br><br>
-
-<button
-class="primary"
-onclick="checkin('${g.id}')">
-CONFIRM / CHECK IN
-</button>
-
-</div>
-`;
-
+showScanPopup(`<div class="result valid"><button class="popupClose" onclick="closeScanPopup()">×</button><h3>✅ VERIFICATION OKAY</h3><b>${esc(g.name)}</b><br>Wageni waliingia: <b>${used}/${max}</b><br>Huyu ni mgeni wa <b>${used+1}</b> kati ya ${max}.<br><br><button class="primary" onclick="checkin('${g.id}')">CONFIRM / CHECK IN</button></div>`);
 }
 
+function showScanPopup(html){
+  const box=document.getElementById('scanResult');
+  if(!box)return;
+  box.innerHTML=html;
+  box.classList.add('scanPopupVisible');
+}
+
+function closeScanPopup(){
+  const box=document.getElementById('scanResult');
+  if(box){box.innerHTML='';box.classList.remove('scanPopupVisible');}
+}
 
 function checkin(id){
+  let g=guests.find(x=>x.id===id);
+  if(!g)return;
 
-let g=
-guests.find(
-x=>x.id===id
-);
+  const max=Math.max(1,Number(g.count)||1);
+  const used=checkedPeople(g);
+  if(used>=max){process(id);return;}
 
-if(!g)return;
+  g.checkedCount=used+1;
+  g.checked=g.checkedCount>=max;
+  g.checkedAt=new Date().toISOString();
+  save();
 
-g.checked=true;
-g.checkedAt=
-new Date().toISOString();
-
-save();
-
-process(id);
-
+  const left=max-g.checkedCount;
+  showScanPopup(`<div class="result valid"><button class="popupClose" onclick="closeScanPopup()">×</button><h3>✅ CHECK-IN SUCCESS</h3><b>${esc(g.name)}</b><br>Wageni walioingia: <b>${g.checkedCount}/${max}</b><br>${left>0 ? `Bado <b>${left}</b> anaweza kutumia kadi hii.` : 'Kadi hii imetumika kikamilifu.'}<br><br>${left>0 ? `<button class="primary" onclick="closeScanPopup()">READY FOR NEXT GUEST</button>` : `<button class="primary" onclick="closeScanPopup()">CLOSE</button>`}</div>`);
 }
 
 
