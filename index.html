@@ -538,8 +538,15 @@ dressCode:['Chocolate','Purple Lavender','Tea Green','Beach','Gold']
 // Taarifa rasmi za harusi hii. Zina-override settings za zamani (mf. Maria/John),
 // lakini tunaendelea kuhifadhi photo/settings nyingine zilizopo.
 const weddingDefaults={bride:'KRISPINA GERVAS JOHN',groom:'THOMAS NICAS THOMAS',date:'2026-10-10',time:'12:30',venue:'PSSSF CONFERENCE',church:'Parokia ya Mt. Cesilia (Muungano)',churchTime:'08:30',mapUrl:'',rsvp:'+255 752 590 970, +255 652 743 932, +255 715 512 764, +255 68 317 9242',message:'Kwa furaha na upendo, tunakualika kushiriki nasi katika siku yetu ya ndoa. Uwepo wako ni sehemu muhimu ya furaha yetu.',photoUrl:'',dressCode:['Chocolate','Purple Lavender','Tea Green','Beach','Gold']};
-s={...(s||{}),...weddingDefaults};
-localStorage.setItem(SK,JSON.stringify(s));
+// Migration ya mara moja: rekebisha settings za zamani za Maria/John kwenye browser/cloud.
+const SETTINGS_MIGRATION='WGM_SETTINGS_MIGRATION_20261003_V3';
+try{
+  if(!localStorage.getItem(SETTINGS_MIGRATION) && (!s || s.groom==='John' || s.bride==='Maria')){
+    s={...(s||{}),...weddingDefaults};
+    localStorage.setItem(SK,JSON.stringify(s));
+  }
+  localStorage.setItem(SETTINGS_MIGRATION,'1');
+}catch(e){}
 
 
 let scanner=null;
@@ -910,8 +917,20 @@ async function cloudPull(silent=false){
       .maybeSingle();
     if(se)throw se;
     if(sr?.settings){
-      s=sr.settings;
-      localStorage.setItem(SK,JSON.stringify(s));
+      const cloudSettings=sr.settings||{};
+      // Ikiwa Cloud bado ina Maria/John kutoka version ya zamani, i-migrate mara moja.
+      // Baada ya hapo Cloud settings ndiyo source of truth na edits za Settings zitasalia.
+      const legacyCloud=(cloudSettings.groom==='John'||cloudSettings.bride==='Maria');
+      if(legacyCloud){
+        const migrated={...(cloudSettings||{}),...weddingDefaults};
+        s=migrated;
+        localStorage.setItem(SK,JSON.stringify(s));
+        const {error:me}=await sb.from('wedding_settings').upsert({owner_id:uid,settings:migrated});
+        if(me)throw me;
+      }else{
+        s=cloudSettings;
+        localStorage.setItem(SK,JSON.stringify(s));
+      }
     }else{
       const {error:settingsErr}=await sb
         .from('wedding_settings')
@@ -2714,9 +2733,11 @@ if(document.getElementById('photoUrl'))document.getElementById('photoUrl').value
 }
 
 
-function saveSettings(){
+async function saveSettings(){
 
+const previous=s||{};
 s={
+...previous,
 bride:v('bride'),
 groom:v('groom'),
 date:v('date'),
@@ -2727,28 +2748,28 @@ churchTime:v('churchTime')||'08:30',
 mapUrl:v('mapUrl'),
 rsvp:v('rsvp'),
 message:v('message'),
-photoUrl:v('photoUrl')
+photoUrl:v('photoUrl'),
+dressCode:previous.dressCode||weddingDefaults.dressCode
 };
 
-localStorage.setItem(
-SK,
-JSON.stringify(s)
-);
-
+localStorage.setItem(SK,JSON.stringify(s));
 refresh();
 
-cloudSaveSettings();
-
-alert(
-'Settings zimehifadhiwa.'
-);
+try{
+  await cloudSaveSettings();
+  setCloudStatus(sb?'Settings zimehifadhiwa kwenye browser na Cloud DB.':'Settings zimehifadhiwa kwenye browser.');
+  alert('✅ Settings zimehifadhiwa kikamilifu.');
+}catch(e){
+  setCloudStatus('Settings zimehifadhiwa browser; Cloud DB: '+(e.message||String(e)));
+  alert('⚠️ Settings zimehifadhiwa kwenye browser, lakini Cloud DB haikukubali: '+(e.message||String(e)));
+}
 
 }
 
 
 async function cloudSaveSettings(){
 
-if(!sb||cloudBusy)return;
+if(!sb)return;
 
 try{
 
