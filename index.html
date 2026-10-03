@@ -735,12 +735,20 @@ function startAutoCloudSync(){
 
   if(!cloudAutoTimer){
     cloudAutoTimer=setInterval(async()=>{
+      // Auto-refresh ya UI bila kuhitaji kubonyeza Refresh/browser refresh.
+      try{
+        dashboard();
+        renderGuests();
+        renderRecent();
+      }catch(e){}
+
+      // Auto-sync ya Cloud DB ikiwa session ipo.
       if(!sb || cloudBusy)return;
       try{
         const {data}=await sb.auth.getSession();
         if(data?.session)await cloudPull();
       }catch(e){}
-    },8000);
+    },5000);
   }
 }
 
@@ -1386,12 +1394,6 @@ document.getElementById('created').innerHTML=`
 ${guestCardHTML(g)}
 
 <div class="btnrow">
-
-<button
-class="primary"
-onclick="sendWhatsAppAPI('${g.id}')">
-📸 WhatsApp: Card + QR + Text
-</button>
 
 <button
 class="dark"
