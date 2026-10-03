@@ -1222,44 +1222,6 @@ return p;
 
 
 /* =========================================================
-   WHATSAPP TEXT FALLBACK
-   ========================================================= */
-
-function openWhatsApp(g){
-
-let p=normalizePhone(g?.phone);
-
-if(!p){
-
-alert(
-'Weka namba ya simu ya mualikwa kwanza.'
-);
-
-return;
-
-}
-
-let url=
-'https://wa.me/'+
-p+
-'?text='+
-encodeURIComponent(
-waMessage(g)
-);
-
-let w=window.open(
-url,
-'_blank',
-'noopener,noreferrer'
-);
-
-if(!w)
-window.location.href=url;
-
-}
-
-
-/* =========================================================
    SMS FALLBACK
    ========================================================= */
 
@@ -1423,8 +1385,7 @@ style="margin-top:12px;background:#fffaf0;border-color:#e5d39a">
 <b>Ujumbe:</b>
 
 <p class="small" style="margin:6px 0 0">
-WhatsApp API itatuma picha yenye QR pamoja na text.
-Ikiwa API haijasanidiwa, tumia Share Card + Text.
+Tumia Share Card + Text au Download Card kutuma kadi kwa njia unayopendelea.
 </p>
 
 </div>
@@ -1938,19 +1899,6 @@ if(c)c.value=1;
 /* =========================================================
    GUEST MANAGEMENT
    ========================================================= */
-
-function openWhatsAppById(id){
-
-let g=guests.find(
-x=>x.id===id
-);
-
-if(!g)return;
-
-openWhatsApp(g);
-
-}
-
 
 function editGuest(id){
 
@@ -2563,8 +2511,7 @@ status.innerHTML=
 <b>⚠️ Share haikufanikiwa.</b>
 
 <p class="small">
-Unaweza kutumia WhatsApp Text
-au Download Card.
+Unaweza kutumia Download Card au SMS ya Kawaida.
 </p>
 `;
 
