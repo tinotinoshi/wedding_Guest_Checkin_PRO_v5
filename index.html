@@ -548,7 +548,8 @@ dressCode:['Purple Lavender','Chocolate','Teal Green','Peach','Gold']
 };
 
 // Tumia taarifa za harusi hii kama default; settings zilizohifadhiwa zinaendelea ku-editika.
-s={bride:'KRISPINA GERVAS JOHN',groom:'THOMAS NICAS THOMAS',date:'2026-10-10',time:'12:30',venue:'PSSSF CONFERENCE',church:'Parokia ya Mt. Cesilia (Muungano)',churchTime:'08:30',photoData:'data:image/jpeg;base64,"+photo+"',mapUrl:'',rsvp:'+255 752 590 970, +255 652 743 932, +255 715 512 764, +255 683 179 242',message:'Kwa furaha na upendo, tunakualika kushiriki nasi katika siku yetu ya ndoa. Uwepo wako ni sehemu muhimu ya furaha yetu.',photoUrl:'',dressCode:['Purple Lavender','Chocolate','Teal Green','Peach','Gold'],...(s||{})};
+s={bride:'KRISPINA GERVAS JOHN',groom:'THOMAS NICAS THOMAS',date:'2026-10-10',time:'12:30',venue:'PSSSF CONFERENCE',church:'Parokia ya Mt. Cesilia (Muungano)',churchTime:'08:30',mapUrl:'',rsvp:'+255 752 590 970, +255 652 743 932, +255 715 512 764, +255 683 179 242',message:'Kwa furaha na upendo, tunakualika kushiriki nasi katika siku yetu ya ndoa. Uwepo wako ni sehemu muhimu ya furaha yetu.',photoUrl:'',dressCode:['Purple Lavender','Chocolate','Teal Green','Peach','Gold'],...(s||{})};
+s.time='12:30'; s.churchTime='08:30';
 
 
 let scanner=null;
@@ -918,13 +919,15 @@ cloudBusy=false;
 
 async function cloudSaveGuests(force=false){
 
-if(!sb||cloudBusy)return;
+if(!sb){setCloudStatus('Supabase haijaunganishwa. Data ipo kwenye browser pekee.');return;}
+if(cloudBusy){setCloudStatus('Cloud inasawazisha data; jaribu tena baada ya muda mfupi.');return;}
 
 try{
 
 let {data,error}=await sb.auth.getUser();
 
-if(error||!data.user)return;
+if(error)throw error;
+if(!data.user){setCloudStatus('Data ipo kwenye browser pekee. Ingia Supabase (Login & Sync) ili ihifadhiwe cloud.');return;}
 
 let rows=guests.map(g=>({
 
@@ -1119,11 +1122,12 @@ Unakaribishwa kushiriki harusi ya ${s.groom} na ${s.bride}.
 👥 Guests allowed: ${g.count}
 📍 Location: ${s.venue}
 📅 Date: ${formatDate(s.date)}
-⛪ Kanisa: ${s.church||'Parokia ya Mt. Cesilia (Muungano)'} (${s.churchTime||'08:30'})\n🕐 Ukumbi: ${s.time} jioni
+⛪ Kanisa: ${s.church||'Parokia ya Mt. Cesilia (Muungano)'} (${s.churchTime||'08:30'})\n🕐 Ukumbini: ${s.time||'12:30'} JIONI
 🗺️ Google Maps: ${mapLink()}
 
-Dress code: Gold, Peach na Tea Green. Tafadhali onyesha QR Code mlangoni.\nThibitisha: Nitafika au Sitafika, nina udhuru.
+Dress code: Gold, Peach na Tea Green. Tafadhali onyesha QR Code mlangoni.
 
+Jibu la mahudhurio (bonyeza kiungo):\nASANTE, NITAFIKA: https://wa.me/${normalizePhone((s.rsvp||'').split(',')[0])}?text=${encodeURIComponent('NITAFIKA kwenye harusi ya '+s.groom+' na '+s.bride+'. Invitation ID: '+g.id)}\nSITAFIKA: https://wa.me/${normalizePhone((s.rsvp||'').split(',')[0])}?text=${encodeURIComponent('SAMAHANI, SITAFIKA kwenye harusi ya '+s.groom+' na '+s.bride+'. Invitation ID: '+g.id)}\n
 RSVP: ${s.rsvp}`;
 
 }
@@ -1137,7 +1141,7 @@ Invitation ID: ${g.id}.
 Guests: ${g.count}.
 Location: ${s.venue}.
 Date: ${formatDate(s.date)}.
-Church: ${s.church||'Parokia ya Mt. Cesilia (Muungano)'} (${s.churchTime||'08:30'}). Venue time: ${s.time} jioni.
+Church: ${s.church||'Parokia ya Mt. Cesilia (Muungano)'} (${s.churchTime||'08:30'}). Ukumbini: ${s.time||'12:30'} JIONI.
 Google Maps: ${mapLink()}.
 RSVP: ${s.rsvp}`;
 
@@ -1307,9 +1311,9 @@ ${photo?`<img class="couple-photo" src="${esc(photo)}" alt="Picha ya maharusi" c
 <div class="guestname">Dear ${esc(g.name)}</div>
 <div class="info">
 <div><span class="label">📅 TAREHE</span><span class="value">${esc(formatDate(s.date))}</span></div>
-<div><span class="label">🕐 MUDA</span><span class="value">${esc(s.time||'-')}</span></div>
+<div><span class="label">🕐 MUDA</span><span class="value">${esc(s.time||'12:30')} JIONI</span></div>
 <div><span class="label">📍 UKUMBI</span><span class="value">${esc(s.venue||'-')}</span></div>
-<div><span class="label">⛪ KANISA</span><span class="value">${esc(s.church||'Parokia ya Mt. Cesilia (Muungano)')} • ${esc(s.churchTime||'08:30')}</span></div>
+<div><span class="label">⛪ KANISA</span><span class="value">${esc(s.church||'Parokia ya Mt. Cesilia (Muungano)')} • ${esc(s.churchTime||'08:30')} MCHANA</span></div>
 <div><span class="label">👥 IDADI YA WATU</span><span class="value">${esc(g.count)}</span></div>
 <div style="grid-column:1/-1"><span class="label">INVITATION ID</span><span class="value">${esc(g.id)}</span></div>
 </div>
@@ -1323,7 +1327,7 @@ ${responseText?`<div class="rsvp-status">${esc(responseText)}</div>`:''}
 <div class="note">RSVP: ${esc(s.rsvp||'')}<br>Asante kwa kuwa sehemu ya siku yetu maalum.</div>
 </div>`;
 }
-function rsvpGuest(id,choice){const g=guests.find(x=>x.id===id);if(!g)return;g.rsvpStatus=choice;g.rsvpAt=new Date().toISOString();save();const box=document.getElementById('shareStatus');if(box)box.innerHTML=`<b>✅ ${choice==='yes'?'Asante, Nitafika':'Sitafika'}.</b><p class="small">Jibu la ${esc(g.name)} limehifadhiwa.</p>`;}
+async function rsvpGuest(id,choice){const g=guests.find(x=>x.id===id);if(!g)return;g.rsvpStatus=choice;g.rsvpAt=new Date().toISOString();localStorage.setItem(GK,JSON.stringify(guests));refresh();const box=document.getElementById('shareStatus');if(box)box.innerHTML=`<b>✅ ${choice==='yes'?'Asante, Nitafika':'Sitafika'}.</b><p class="small">Jibu limehifadhiwa kwenye kifaa hiki.</p>`;try{await cloudSaveGuests(true);if(box&&sb)box.innerHTML+=`<p class="small">Jaribio la kusawazisha Supabase limefanyika; angalia ujumbe wa Cloud DB.</p>`;}catch(e){if(box)box.innerHTML+=`<p class="small">Cloud DB: ${esc(e.message)}</p>`;}}
 
 /* =========================================================
    SHOW QR
@@ -1379,8 +1383,7 @@ style="margin-top:12px;background:#fffaf0;border-color:#e5d39a">
 <b>Ujumbe:</b>
 
 <p class="small" style="margin:6px 0 0">
-WhatsApp API itatuma picha yenye QR pamoja na text.
-Ikiwa API haijasanidiwa, tumia Share Card + Text.
+Picha ya kadi yenyewe haina button zinazobonyezwa. Ujumbe wa WhatsApp una viungo vya kubonyeza ASANTE, NITAFIKA au SITAFIKA.
 </p>
 
 </div>
@@ -2136,6 +2139,8 @@ function startScanner(){
 
 if(scanner)return;
 
+if(!document.getElementById('reader'))return;
+
 if(
 location.protocol==='file:'||
 location.protocol==='content:'
@@ -2185,6 +2190,7 @@ x=>process(x),
 .catch(
 ()=>{
 
+try{if(scanner)scanner.clear();}catch(e){}
 scanner=null;
 
 document.getElementById(
