@@ -177,6 +177,24 @@ header,nav,main>section:not(#preview){display:none!important}
  .guest-card .info{grid-template-columns:1fr!important;margin-left:0!important;margin-right:0!important}
 }
 
+
+/* Verification success message */
+.verification-ok{
+  text-align:center;
+  border:2px solid #2e8b57;
+  box-shadow:0 10px 30px rgba(46,139,87,.14);
+  animation:verificationPop .35s ease-out;
+}
+.verification-icon{
+  width:58px;height:58px;margin:0 auto 10px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:#2e8b57;color:#fff;
+  font-size:36px;font-weight:700;
+  box-shadow:0 0 0 7px rgba(46,139,87,.10);
+}
+.verification-text{margin:6px 0 12px;font-weight:600;}
+@keyframes verificationPop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
 </style>
 </head>
 
@@ -2359,9 +2377,15 @@ document.getElementById(
 'scanResult'
 ).innerHTML=
 `
-<div class="result valid">
+<div class="result valid verification-ok">
 
-<h3>✅ VALID INVITATION</h3>
+<div class="verification-icon">✓</div>
+
+<h3>✅ VERIFICATION OKAY</h3>
+
+<p class="verification-text">
+QR Code imesomwa na mwaliko umethibitishwa.
+</p>
 
 <b>${esc(g.name)}</b>
 
@@ -2397,7 +2421,21 @@ new Date().toISOString();
 
 save();
 
-process(id);
+let result=document.getElementById('scanResult');
+if(result){
+result.innerHTML=`
+<div class="result valid verification-ok">
+<div class="verification-icon">✓</div>
+<h3>✅ VERIFICATION SUCCESSFUL</h3>
+<p class="verification-text">
+Mwalikwa amethibitishwa na Check-in imekamilika.
+</p>
+<b>${esc(g.name)}</b><br>
+Guests: ${g.count}<br>
+<span class="small">${new Date(g.checkedAt).toLocaleString()}</span>
+</div>
+`;
+}
 
 }
 
