@@ -102,6 +102,18 @@ nav button.active,.primary{background:var(--gold);color:#fff}
 th{background:var(--tea);color:var(--ink)}
 .progress>div{background:var(--gold)}
 .guest-card{background:linear-gradient(145deg,#FFF9F0 0%,#fff 52%,#F6B7A8 100%);color:var(--ink);border:3px solid var(--gold);box-shadow:0 14px 40px rgba(74,64,58,.18);padding:28px}
+.guest-card{position:relative;overflow:hidden;background:linear-gradient(145deg,#fffaf2 0%,#fff 48%,#f8ddd5 100%)}
+.guest-card .floral{position:absolute;font-size:42px;line-height:1;opacity:.9;pointer-events:none;z-index:0;filter:saturate(.9)}
+.guest-card .floral.tl{left:8px;top:6px;transform:rotate(-18deg)}
+.guest-card .floral.tr{right:8px;top:6px;transform:rotate(18deg)}
+.guest-card .floral.bl{left:8px;bottom:6px;transform:rotate(18deg)}
+.guest-card .floral.br{right:8px;bottom:6px;transform:rotate(-18deg)}
+.guest-card .rsvp-title{font-size:12px;font-weight:800;letter-spacing:1px;color:#8C6910;margin:14px 0 6px}
+.guest-card .rsvp-buttons{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
+.guest-card .rsvp-btn{border:0;padding:11px 15px;border-radius:999px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 3px 10px rgba(74,64,58,.14)}
+.guest-card .rsvp-yes{background:#D4AF37;color:#fff}.guest-card .rsvp-no{background:#C98F82;color:#fff}
+.guest-card .rsvp-status{display:inline-block;margin-top:7px;padding:6px 11px;border-radius:999px;font-size:11px;font-weight:800;background:#B7C9A8;color:#40513b;border:1px solid #8fa87f}
+
 .guest-card:before{border:1px solid rgba(212,175,55,.55)}
 .guest-card .couple-photo{border:3px solid var(--gold);background:var(--tea)}
 .guest-card .brand{color:var(--ink);font-weight:800}
@@ -1280,40 +1292,39 @@ function guestCardHTML(g){
 const photo=s.photoUrl||s.photoData||'';
 const dress=[['Gold','#D4AF37'],['Peach','#F6B7A8'],['Tea Green','#B7C9A8']];
 const dressHtml=dress.map(c=>`<span title="${c[0]}" class="swatch" style="background:${c[1]}"></span>`).join('');
-const rsvpNums=(s.rsvp||'').split(',').map(x=>x.trim()).filter(Boolean);
-const confirmText=`Nathibitisha kuhudhuria harusi ya ${s.groom} na ${s.bride}. Invitation ID: ${g.id}`;
 const maps=mapLink();
-const status=g.checked?'CHECKED-IN':'PENDING';
-const statusClass=g.checked?'status-pill':'status-pill';
+const response=g.rsvpStatus||'';
+const responseText=response==='yes'?'Umesema: Asante, Nitafika':response==='no'?'Umesema: Sitafika':'';
 return `<div class="guest-card" id="guestCard" data-guest-id="${esc(g.id)}">
+<div class="floral tl">🌸</div><div class="floral tr">🌿🌸</div><div class="floral bl">🌿🌺</div><div class="floral br">🌸</div>
 <div class="brand">💍 WEDDING INVITATION</div>
 <div style="font-size:11px;letter-spacing:2px;color:#8C6910;margin-top:4px">YOU ARE CORDIALLY INVITED</div>
-<img class="couple-photo" src="${esc(photo)}" alt="Picha ya maharusi" crossorigin="anonymous" onerror="this.style.display='none'">
+${photo?`<img class="couple-photo" src="${esc(photo)}" alt="Picha ya maharusi" crossorigin="anonymous" onerror="this.onerror=null;this.style.display='none'">`:''}
 <div style="font-size:12px;color:#8C6910;letter-spacing:2px;font-weight:bold">THE WEDDING OF</div>
 <div class="names">${esc(s.groom)}<br><span style="font-size:20px;color:#D4AF37">&amp;</span><br>${esc(s.bride)}</div>
 <div class="eventline"></div>
 <div class="message">${esc(s.message||'Kwa furaha na upendo, tunakualika kushiriki nasi katika siku yetu ya ndoa. Uwepo wako ni sehemu muhimu ya furaha yetu.')}</div>
 <div class="guestname">Dear ${esc(g.name)}</div>
-<div class="${statusClass}">${g.checked?'✓ CONFIRMED / CHECKED-IN':'● PENDING CONFIRMATION'}</div>
 <div class="info">
-<div><span class="label">TAREHE</span><span class="value">${esc(formatDate(s.date))}</span></div>
-<div><span class="label">UKUMBI • MUDA</span><span class="value">${esc(s.venue)} • ${esc(s.time)}</span></div>
-<div><span class="label">KANISA</span><span class="value">${esc(s.church||'Parokia ya Mt. Cesilia (Muungano)')} • ${esc(s.churchTime||'08:30')}</span></div>
-<div><span class="label">IDADI YA WATU</span><span class="value">${esc(g.count)}</span></div>
+<div><span class="label">📅 TAREHE</span><span class="value">${esc(formatDate(s.date))}</span></div>
+<div><span class="label">🕐 MUDA</span><span class="value">${esc(s.time||'-')}</span></div>
+<div><span class="label">📍 UKUMBI</span><span class="value">${esc(s.venue||'-')}</span></div>
+<div><span class="label">⛪ KANISA</span><span class="value">${esc(s.church||'Parokia ya Mt. Cesilia (Muungano)')} • ${esc(s.churchTime||'08:30')}</span></div>
+<div><span class="label">👥 IDADI YA WATU</span><span class="value">${esc(g.count)}</span></div>
 <div style="grid-column:1/-1"><span class="label">INVITATION ID</span><span class="value">${esc(g.id)}</span></div>
 </div>
-<div style="font-size:11px;color:#8C6910;font-weight:bold">DRESS CODE • COLOUR CODE</div>
-<div class="colour-code">${dressHtml}</div>
-<div style="font-size:10px">GOLD • PEACH • TEA GREEN</div>
-<div class="qrbox"><div id="guestQR"></div></div>
-<div style="font-size:11px;font-weight:bold;color:#4A403A">SCAN / ONYESHA QR CODE MLANGONI</div>
+<div style="font-size:11px;color:#8C6910;font-weight:bold">DRESS CODE • COLOUR CODE</div><div class="colour-code">${dressHtml}</div><div style="font-size:10px">GOLD • PEACH • TEA GREEN</div>
+<div class="qrbox"><div id="guestQR"></div></div><div style="font-size:11px;font-weight:bold;color:#4A403A">SCAN / ONYESHA QR CODE MLANGONI</div>
 <div class="eventline"></div>
-<a class="confirm" href="https://wa.me/${normalizePhone(rsvpNums[0]||'')}?text=${encodeURIComponent(confirmText+' Nitafika.')}">✓ ASANTE, NITAFIKA</a>
-<a class="confirm" style="background:#C98F82" href="https://wa.me/${normalizePhone(rsvpNums[0]||'')}?text=${encodeURIComponent(confirmText+' Samahani, sitafika.')}">SITAFIKA</a>
+<div class="rsvp-title">TAFADHALI THIBITISHA UHUDHURIAJI WAKO</div>
+<div class="rsvp-buttons"><button type="button" class="rsvp-btn rsvp-yes" onclick="rsvpGuest('${esc(g.id)}','yes')">✓ ASANTE, NITAFIKA</button><button type="button" class="rsvp-btn rsvp-no" onclick="rsvpGuest('${esc(g.id)}','no')">SITAFIKA</button></div>
+${responseText?`<div class="rsvp-status">${esc(responseText)}</div>`:''}
 <div style="margin-top:12px"><a class="confirm" href="${esc(maps)}" target="_blank" rel="noopener">📍 PATA MAELEKEZO / GOOGLE MAPS</a></div>
-<div class="note">RSVP: ${esc(s.rsvp)}<br>Asante kwa kuwa sehemu ya siku yetu maalum.</div>
+<div class="note">RSVP: ${esc(s.rsvp||'')}<br>Asante kwa kuwa sehemu ya siku yetu maalum.</div>
 </div>`;
 }
+function rsvpGuest(id,choice){const g=guests.find(x=>x.id===id);if(!g)return;g.rsvpStatus=choice;g.rsvpAt=new Date().toISOString();save();const box=document.getElementById('shareStatus');if(box)box.innerHTML=`<b>✅ ${choice==='yes'?'Asante, Nitafika':'Sitafika'}.</b><p class="small">Jibu la ${esc(g.name)} limehifadhiwa.</p>`;}
+
 /* =========================================================
    SHOW QR
    ========================================================= */
@@ -1418,7 +1429,7 @@ holder.style.position='fixed';
 holder.style.left='-10000px';
 holder.style.top='0';
 holder.style.width='520px';
-holder.style.background='#4A403A';
+holder.style.background='#FFF9F0';
 holder.style.zIndex='-9999';
 
 holder.innerHTML=guestCardHTML(g);
@@ -1457,7 +1468,7 @@ el,
 scale:3,
 useCORS:true,
 allowTaint:false,
-backgroundColor:'#4A403A',
+backgroundColor:'#FFF9F0',
 logging:false,
 removeContainer:true,
 imageTimeout:15000
@@ -1502,7 +1513,7 @@ el,
 scale:3,
 useCORS:true,
 allowTaint:false,
-backgroundColor:'#4A403A',
+backgroundColor:'#FFF9F0',
 logging:false,
 removeContainer:true,
 imageTimeout:15000
