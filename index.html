@@ -530,6 +530,8 @@ let guests=JSON.parse(localStorage.getItem(GK)||'[]');
 
 let sb=null;
 let cloudBusy=false;
+let cloudAutoTimer=null;
+let cloudAuthBound=false;
 
 let s=JSON.parse(localStorage.getItem(SK)||'null')||{
 bride:'Maria',
@@ -633,6 +635,7 @@ c.key
 
 try{
 
+if(!sb){
 sb=window.supabase.createClient(
 c.url,
 c.key,
@@ -644,12 +647,15 @@ detectSessionInUrl:true
 }
 }
 );
+}
 
 }catch(e){
 
 console.error('Supabase init error:',e);
 
 }
+
+if(sb)startAutoCloudSync();
 
 }
 
@@ -693,6 +699,10 @@ detectSessionInUrl:true
 }
 }
 );
+
+// Client mpya baada ya Login/Configure: ruhusu binding ya auth listener tena.
+cloudAuthBound=false;
+startAutoCloudSync();
 
 return sb;
 
@@ -762,7 +772,7 @@ password
 if(error)throw error;
 
 setCloudStatus(
-'Login imefanikiwa. Inasawazisha data...'
+'Login imefanikiwa. Inasawazisha data na Auto-Sync imewashwa...'
 );
 
 await cloudPull();
@@ -806,17 +816,55 @@ setCloudStatus(
 
 
 /* =========================================================
+   AUTOMATIC CLOUD SYNC
+   ========================================================= */
+
+function startAutoCloudSync(){
+  if(!sb)return;
+
+  // Supabase huhifadhi session kwenye browser. Baada ya login ya kwanza,
+  // simu hii inaweza kuingia tena bila kuandika password kila mara.
+  if(!cloudAuthBound && sb.auth?.onAuthStateChange){
+    cloudAuthBound=true;
+    sb.auth.onAuthStateChange((event,session)=>{
+      if(session){
+        // Usifanye await moja kwa moja ndani ya auth callback.
+        setTimeout(()=>cloudPull(true),0);
+      }
+    });
+  }
+
+  // Pull ya kwanza mara tu session iliyohifadhiwa inapopatikana.
+  sb.auth.getSession().then(({data})=>{
+    if(data?.session)cloudPull(true);
+  }).catch(()=>{});
+
+  // Kila sekunde 8, simu hii huangalia mabadiliko mapya ya Cloud DB.
+  // Hivyo attendants 3+ wanaweza kuona check-in/guest updates bila
+  // kubonyeza Login & Sync kila mara.
+  if(!cloudAutoTimer){
+    cloudAutoTimer=setInterval(async()=>{
+      if(!sb || cloudBusy)return;
+      try{
+        const {data}=await sb.auth.getSession();
+        if(data?.session)await cloudPull(true);
+      }catch(e){}
+    },8000);
+  }
+}
+
+/* =========================================================
    CLOUD PULL
    ========================================================= */
 
-async function cloudPull(){
+async function cloudPull(silent=false){
   if(!sb){
     setCloudStatus('Supabase haijaunganishwa.');
     return;
   }
   const {data:ud,error:ue}=await sb.auth.getUser();
   if(ue||!ud?.user){
-    setCloudStatus('Login haijathibitishwa. Ingia kwa akaunti ileile kwenye simu zote.');
+    if(!silent)setCloudStatus('Login haijathibitishwa. Ingia kwa akaunti ileile kwenye simu zote.');
     return;
   }
 
@@ -885,9 +933,13 @@ async function cloudPull(){
 
     loadSettings();
     refresh();
-    setCloudStatus('Imeunganishwa kama '+ud.user.email+'. Wageni '+guests.length+' wamesawazishwa kwenye Cloud DB.');
+    if(!silent){
+      setCloudStatus('Imeunganishwa kama '+ud.user.email+'. Wageni '+guests.length+' wamesawazishwa kwenye Cloud DB.');
+    }
   }catch(e){
-    setCloudStatus('Hitilafu ya sync: '+(e?.message||String(e))+' — angalia SQL/RLS na ruhusa za Supabase.');
+    if(!silent){
+      setCloudStatus('Hitilafu ya sync: '+(e?.message||String(e))+' — angalia SQL/RLS na ruhusa za Supabase.');
+    }
   }finally{
     cloudBusy=false;
   }
