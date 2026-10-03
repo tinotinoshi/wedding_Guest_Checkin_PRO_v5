@@ -535,9 +535,11 @@ photoUrl:'',
 dressCode:['Chocolate','Purple Lavender','Tea Green','Beach','Gold']
 };
 
-// Tumia taarifa za harusi hii kama default; settings zilizohifadhiwa zinaendelea ku-editika.
-s={bride:'KRISPINA GERVAS JOHN',groom:'THOMAS NICAS THOMAS',date:'2026-10-10',time:'12:30',venue:'PSSSF CONFERENCE',church:'Parokia ya Mt. Cesilia (Muungano)',churchTime:'08:30',mapUrl:'',rsvp:'+255 752 590 970, +255 652 743 932, +255 715 512 764, +255 68 317 9242',message:'Kwa furaha na upendo, tunakualika kushiriki nasi katika siku yetu ya ndoa. Uwepo wako ni sehemu muhimu ya furaha yetu.',photoUrl:'',dressCode:['Chocolate','Purple Lavender','Tea Green','Beach','Gold'],...(s||{})};
-s.time='12:30'; s.churchTime='08:30';
+// Taarifa rasmi za harusi hii. Zina-override settings za zamani (mf. Maria/John),
+// lakini tunaendelea kuhifadhi photo/settings nyingine zilizopo.
+const weddingDefaults={bride:'KRISPINA GERVAS JOHN',groom:'THOMAS NICAS THOMAS',date:'2026-10-10',time:'12:30',venue:'PSSSF CONFERENCE',church:'Parokia ya Mt. Cesilia (Muungano)',churchTime:'08:30',mapUrl:'',rsvp:'+255 752 590 970, +255 652 743 932, +255 715 512 764, +255 68 317 9242',message:'Kwa furaha na upendo, tunakualika kushiriki nasi katika siku yetu ya ndoa. Uwepo wako ni sehemu muhimu ya furaha yetu.',photoUrl:'',dressCode:['Chocolate','Purple Lavender','Tea Green','Beach','Gold']};
+s={...(s||{}),...weddingDefaults};
+localStorage.setItem(SK,JSON.stringify(s));
 
 
 let scanner=null;
