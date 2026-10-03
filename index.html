@@ -2206,85 +2206,90 @@ try{
 }
 }
 
-function process(id){
-
-id=String(id).trim();
-
-let g=
-guests.find(
-x=>x.id===id
-);
-
-if(!g){
-
-document.getElementById(
-'scanResult'
-).innerHTML=
-`
-<div class="result invalid">
-
-<h3>❌ INVALID INVITATION</h3>
-
-<p>
-ID haipo kwenye mfumo.
-</p>
-
-</div>
-`;
-
-return;
-
+function extractInvitationId(raw){
+  const value=String(raw??'').trim();
+  if(!value)return '';
+  // QR inaweza kuwa na ID moja kwa moja, URL, au JSON.
+  try{
+    const obj=JSON.parse(value);
+    if(obj && typeof obj==='object'){
+      const found=obj.invitationId||obj.invitation_id||obj.guestId||obj.guest_id||obj.id||obj.code;
+      if(found)return String(found).trim();
+    }
+  }catch(e){}
+  try{
+    const u=new URL(value);
+    const found=u.searchParams.get('invitationId')||u.searchParams.get('invitation_id')||u.searchParams.get('guestId')||u.searchParams.get('guest_id')||u.searchParams.get('id')||u.searchParams.get('code');
+    if(found)return found.trim();
+  }catch(e){}
+  const match=value.match(/WED-[A-Z0-9-]+/i);
+  return match?match[0].toUpperCase():value;
 }
 
-if(g.checked){
-
-document.getElementById(
-'scanResult'
-).innerHTML=
-`
-<div class="result invalid">
-
-<h3>⚠️ ALREADY CHECKED IN</h3>
-
-<b>${esc(g.name)}</b>
-
-<br>
-Guests: ${g.count}
-
-<br>
-${new Date(g.checkedAt).toLocaleString()}
-
-</div>
-`;
-
-return;
-
+async function findGuestInCloud(id){
+  if(!sb)return null;
+  try{
+    const {data:authData,error:authError}=await sb.auth.getUser();
+    if(authError||!authData?.user)return null;
+    const {data:rows,error}=await sb
+      .from('wedding_guests')
+      .select('guest_id,payload')
+      .eq('owner_id',authData.user.id);
+    if(error)throw error;
+    if(Array.isArray(rows)){
+      const cloudGuests=rows.map(r=>r.payload).filter(Boolean).map(g=>({...g,id:String(g.id||'').trim()}));
+      // Cloud ndiyo chanzo cha orodha ya pamoja kwa simu za wahudumu.
+      guests=cloudGuests;
+      localStorage.setItem(GK,JSON.stringify(guests));
+      refresh();
+      setCloudStatus('Cloud imeunganishwa. Wageni '+guests.length+' wamepakuliwa kwa ajili ya check-in.');
+      return guests.find(g=>String(g.id||'').trim().toUpperCase()===id.toUpperCase())||null;
+    }
+  }catch(e){
+    setCloudStatus('Imeshindikana kupakua wageni kutoka Cloud: '+(e.message||String(e)));
+  }
+  return null;
 }
 
-document.getElementById(
-'scanResult'
-).innerHTML=
-`
-<div class="result valid">
+async function process(rawId){
+  const id=extractInvitationId(rawId);
+  let g=guests.find(x=>String(x.id||'').trim().toUpperCase()===id.toUpperCase());
 
-<h3>✅ VALID INVITATION</h3>
+  // Kama orodha ya simu hii haina mgeni, tafuta tena kwenye Supabase.
+  if(!g){
+    const result=document.getElementById('scanResult');
+    if(result)result.innerHTML='<div class="result">Inatafuta Invitation ID kwenye Cloud DB…</div>';
+    g=await findGuestInCloud(id);
+  }
 
-<b>${esc(g.name)}</b>
+  if(!g){
+    const result=document.getElementById('scanResult');
+    const help=document.getElementById('cameraHelp');
+    let signedIn=false;
+    try{const {data}=sb?await sb.auth.getUser():{data:null};signedIn=!!data?.user;}catch(e){}
+    if(result)result.innerHTML=`
+      <div class="result invalid">
+        <h3>❌ INVITATION ID HAIPATIKANI</h3>
+        <p>ID iliyosomwa: <b>${esc(id||'(hakuna ID)')}</b></p>
+        <p>${signedIn?'ID hii haipo kwenye orodha ya Cloud DB ya akaunti hii. Hakikisha umetumia akaunti ileile iliyosajili wageni.':'Simu hii haijaingia kwenye Cloud DB. Fungua Database ya Mtandaoni, ingia kwa akaunti ileile iliyotumika kusajili wageni, kisha bonyeza Login & Sync.'}</p>
+      </div>`;
+    if(help)help.textContent='Baada ya Login & Sync kufanikiwa, jaribu kuscan tena.';
+    liveScanLocked=false;
+    return;
+  }
 
-<br>
-Guests allowed: ${g.count}
+  if(g.checked){
+    document.getElementById('scanResult').innerHTML=`
+      <div class="result invalid"><h3>⚠️ ALREADY CHECKED IN</h3>
+      <b>${esc(g.name)}</b><br>Guests: ${esc(g.count)}<br>
+      ${g.checkedAt?new Date(g.checkedAt).toLocaleString():''}</div>`;
+    return;
+  }
 
-<br><br>
-
-<button
-class="primary"
-onclick="checkin('${g.id}')">
-CONFIRM / CHECK IN
-</button>
-
-</div>
-`;
-
+  document.getElementById('scanResult').innerHTML=`
+    <div class="result valid"><h3>✅ VALID INVITATION</h3>
+    <b>${esc(g.name)}</b><br>Guests allowed: ${esc(g.count)}<br><br>
+    <button class="primary" onclick="checkin('${esc(g.id)}')">CONFIRM / CHECK IN</button></div>`;
 }
 
 
@@ -2959,6 +2964,17 @@ loadSettings();
 initCloud();
 
 refresh();
+
+// Kama mhudumu tayari aliingia kwenye Supabase kwenye simu hii,
+// pakua orodha ya pamoja bila kuhitaji login kila mara.
+setTimeout(async()=>{
+  try{
+    if(sb){
+      const {data}=await sb.auth.getUser();
+      if(data?.user)await cloudPull();
+    }
+  }catch(e){console.warn('Auto cloud sync:',e);}
+},700);
 
 </script>
 
