@@ -500,7 +500,7 @@ SQL ya database pamoja na setup ya messaging.
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -553,6 +553,7 @@ s.time='12:30'; s.churchTime='08:30';
 
 
 let scanner=null;
+let liveScanLocked=false;
 
 
 /* =========================================================
@@ -2141,7 +2142,6 @@ if(scanner)return;
 
 const reader=document.getElementById('reader');
 if(!reader)return;
-
 const help=document.getElementById('cameraHelp');
 const result=document.getElementById('scanResult');
 
@@ -2149,52 +2149,59 @@ if(location.protocol==='file:'||location.protocol==='content:'){
   if(help)help.textContent='Live Camera inahitaji tovuti ya HTTPS. Fungua Wedding Invitation PRO kupitia GitHub Pages, si faili la ndani.';
   return;
 }
-
 if(!window.Html5Qrcode){
-  if(result)result.innerHTML='<div class="result invalid">QR scanner haijapakiwa. Hakikisha internet ipo, kisha refresh ukurasa.</div>';
+  if(result)result.innerHTML='<div class="result invalid">QR scanner haijapakiwa. Hakikisha internet ipo kisha refresh ukurasa.</div>';
+  if(help)help.textContent='Maktaba ya QR haijapakiwa. Jaribu internet au tumia Gallery QR kwa muda.';
   return;
 }
 
-if(help)help.textContent='Inaunganisha kamera ya nyuma… Shikilia QR ndani ya fremu na rekebisha umbali ili iwe wazi.';
+if(help)help.textContent='Inaunganisha kamera ya nyuma…';
+if(result)result.innerHTML='';
 
 try{
-  scanner=new Html5Qrcode('reader');
-  let cameraConfig={facingMode:'environment'};
-  try{
-    const cameras=await Html5Qrcode.getCameras();
-    if(cameras && cameras.length){
-      const rear=cameras.find(c=>/back|rear|environment|main/i.test(c.label||''));
-      cameraConfig={deviceId:{exact:(rear||cameras[cameras.length-1]).id}};
-    }
-  }catch(cameraListError){
-    // Baadhi ya simu hazitoi orodha ya kamera; jaribu facingMode badala yake.
-  }
-
+  // Tumia kamera ya nyuma moja kwa moja. Kuacha qrbox bila kuweka
+  // kunaruhusu scanner kutafuta QR katika fremu nzima, si katikati tu.
+  scanner=new Html5Qrcode('reader', {verbose:false});
+  liveScanLocked=false;
   await scanner.start(
-    cameraConfig,
-    {
-      fps:15,
-      qrbox:(viewfinderWidth,viewfinderHeight)=>{
-        const size=Math.floor(Math.min(viewfinderWidth,viewfinderHeight)*0.72);
-        return {width:Math.max(180,Math.min(size,300)),height:Math.max(180,Math.min(size,300))};
-      },
-      aspectRatio:1.0,
-      disableFlip:false,
-      videoConstraints:{ facingMode:'environment' }
-    },
+    {facingMode:'environment'},
+    {fps:12, disableFlip:false, aspectRatio:1.0},
     decodedText=>{
-      if(help)help.textContent='QR imesomwa. Kagua taarifa za mwalikwa hapa chini.';
+      if(liveScanLocked)return;
+      liveScanLocked=true;
+      if(help)help.textContent='QR imesomwa. Inakagua Invitation ID…';
       process(decodedText);
     },
-    scanError=>{
-      // Hii hutokea wakati QR bado haijapatikana; si hitilafu ya kuonyesha kila fremu.
-    }
+    ()=>{}
   );
-  if(help)help.textContent='Kamera iko tayari. Weka QR nzima ndani ya fremu, hakikisha mwanga upo na subiri sekunde chache.';
+  if(help)help.textContent='Kamera iko tayari. Elekeza QR nzima kwenye picha ya kamera, sogeza simu taratibu karibu au mbali, na subiri sekunde chache.';
+
+  // Fallback kwa Chrome zinazounga mkono BarcodeDetector ya ndani.
+  // Inasoma video ileile bila kuwasha kamera ya pili.
+  if('BarcodeDetector' in window){
+    try{
+      const detector=new BarcodeDetector({formats:['qr_code']});
+      const video=reader.querySelector('video');
+      const fallbackScan=async()=>{
+        if(!scanner || liveScanLocked || !video || video.readyState<2)return;
+        try{
+          const codes=await detector.detect(video);
+          if(codes && codes.length && codes[0].rawValue && !liveScanLocked){
+            liveScanLocked=true;
+            if(help)help.textContent='QR imesomwa na kamera. Inakagua Invitation ID…';
+            process(codes[0].rawValue);
+            return;
+          }
+        }catch(e){}
+        if(scanner && !liveScanLocked) setTimeout(fallbackScan,250);
+      };
+      setTimeout(fallbackScan,400);
+    }catch(e){ /* Maktaba kuu bado inaendelea kujaribu kusoma QR. */ }
+  }
 }catch(e){
   try{if(scanner){await scanner.stop().catch(()=>{});await scanner.clear().catch(()=>{});}}catch(cleanupError){}
   scanner=null;
-  if(help)help.textContent='Kamera imefunguka lakini scanner imeshindwa kuanza. Hakikisha ruhusa ya kamera ipo, funga programu nyingine inayotumia kamera, kisha bonyeza Live Camera tena.';
+  if(help)help.textContent='Kamera imeshindwa kuanza. Ruhusu camera kwenye Chrome, funga programu nyingine inayotumia kamera, kisha jaribu tena.';
   if(result)result.innerHTML='<div class="result invalid">Live Camera haikuweza kuanza: '+esc(e?.message||String(e))+'</div>';
 }
 }
